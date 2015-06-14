@@ -1,0 +1,171 @@
+-----------------------------------------------
+title: "Reproducbile Research Project 1"
+author: "Samantha Foster"
+date: "Friday, June 12, 2015"
+-----------------------------------------------
+
+first, load the required libraries
+
+```{r}
+library(knitr)
+library(dplyr)
+library(lattice)
+```
+
+
+###Question 1: Loading and preprocessing the data
+
+Unzip the activity.zip file and read the .csv file into a variable called data
+
+```{r}
+setwd("C:/Users/Sam/Documents/Coursera/ReproducibleResearch/Project1/RepData_PeerAssessment1")
+unzip("activity.zip")
+data<-read.csv("activity.csv",header=TRUE,sep=",")
+```
+
+Convert the interval variable into a factor for use in later analysis.  This is the only processing/transforming needed right now.
+
+```{r}
+data$interval <- as.factor(data$interval)
+```
+
+###Question 2: What is the mean total number of steps taken per day?
+
+To calculate the total number of steps taken per day, group the data by day using 
+the group_by function in dplyr, then use the summary function to calculate the sum 
+of steps for each day
+
+```{r}
+dayGroup <- group_by(data,date)
+daySteps <- summarize(dayGroup, stepsPerDay = sum(steps, na.rm =TRUE))
+```
+
+Make a historgram of the total number of steps per day
+```{r}
+hist(daySteps$stepsPerDay, breaks = 20, main = "Histogram of Steps Taken per Day", xlab = "Steps Per Day")
+```
+
+Calculate and output the mean and median steps per day
+```{r}
+meanSteps <- round(mean(daySteps$stepsPerDay),0)
+meanSteps
+medianSteps <- median(daySteps$stepsPerDay)
+medianSteps
+```
+
+The mean of the total number of steps per day is `r meanSteps`, and the median is `r medianSteps`.
+
+###Question 3: What is the average daily activity pattern?
+
+Group the data by interval using the group_by function in dplyr, then use summary to calculate the 
+average number of steps taken for each interval, averaged across all days
+
+```{r}
+intervalGroup <- group_by(data,interval)
+intervalSteps <- summarize(intervalGroup, stepsPerInterval = mean(steps, na.rm=TRUE))
+
+```
+
+Make a plot of the interval and average number of steps.  
+
+```{r}
+intervalSteps$interval <- as.numeric(levels(intervalSteps$interval))
+plot(intervalSteps$interval, intervalSteps$stepsPerInterval, main = "Average Number of Steps per Interval",xlab="Inverval", ylab="Average Steps",type="l")
+```
+
+Calculate the interval that contains the maximum number of steps
+```{r}
+maxIndex <- match(max(intervalSteps$stepsPerInterval),intervalSteps$stepsPerInterval)
+maxInterval <- intervalSteps$interval[maxIndex]
+maxInterval
+```
+
+The interval with the maximum number of steps is `r maxInterval`.
+
+###Question 4: Inputing missing values 
+
+Calculate the total number of missing values in the steps column of the data
+```{r}
+totalNA <- length(which(is.na(data$steps)))
+totalNA
+```
+The total number of missing values is `r totalNA`
+
+If a value is missing, replace it with the mean value for the associated 5-minute interval (calculated in Question 3, and stored in intervalSteps variable.
+Make a new dataset called data2, that has all NA values replaced.
+
+```{r}
+data2 <- data
+
+for(i in 1:length(data$steps)){
+  if(is.na(data$steps[i])){
+    temp <- data$interval[i]
+    index <- match(temp,intervalSteps$interval)
+    steps <- intervalSteps$stepsPerInterval[index]
+    data2$steps[i] <- steps
+  }
+}
+
+```
+
+Repeat question 2, but using data2
+
+
+```{r}
+dayGroup2 <- group_by(data2,date)
+daySteps2 <- summarize(dayGroup2, stepsPerDay2 = sum(steps, na.rm =TRUE))
+```
+
+Make a historgram of the total number of steps per day
+```{r}
+hist(daySteps2$stepsPerDay2, breaks = 20, main = "Histogram of Steps Taken per Day", xlab = "Steps Per Day")
+```
+
+Calculate and output the mean and median steps per day
+```{r}
+meanStepsNA <- round(mean(daySteps2$stepsPerDay2),0)
+meanStepsNA
+medianStepsNA <- round(median(daySteps2$stepsPerDay2),0)
+medianStepsNA
+```
+
+The mean of the total number of steps per day with NAs inputed is `r meanStepsNA`, and the median is `r medianStepsNA`.
+
+Calculate the difference in mean and median steps from the first part of the assignment.
+
+```{r}
+meanDiff <- abs(meanSteps - meanStepsNA)
+meanDiff
+medianDiff <- abs(medianSteps - medianStepsNA)
+medianDiff
+
+```
+
+The difference in mean steps per day between ingorning NA values, and adding them in is `r meanDiff`, and the median is `r medianDiff`. The impact of adding missing data is that the mean and median of daily number of steps are now equal. 
+
+###Question 5: Are there differences in activity patterns between weekdays and weekends?
+
+First, change the date column from a factor into a date
+```{r}
+data2$date <- as.Date(data2$date)
+```
+
+Add a new factor variable column to the data2 dataframe that indicates if the date is a weekday or weekend.  Use the mutate function from dplyr to do this
+
+```{r}
+data2<- mutate(data2, day = factor((weekdays(date)=="Saturday"| weekdays(date)=="Sunday"), labels = c("weekdays","weekend")))
+```
+
+Group the data by interval using the group_by function in dplyr, then use summary to calculate the 
+average number of steps taken for each interval, averaged across all days.  This will be used for the plot
+
+```{r}
+intervalGroup3 <- group_by(data2,interval,day)
+intervalSteps3 <- summarize(intervalGroup3, stepsPerInterval3 = mean(steps, na.rm=TRUE))
+```
+
+Make a pannel plot of the steps per interval for weekends and weekdays
+```{r}
+
+xyplot(stepsPerInterval3~interval | day, data = intervalSteps3, layout=c(1,2),ylab="Number of steps",type="l")
+```
